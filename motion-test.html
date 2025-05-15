@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Motion Detection</title>
+</head>
+<body>
+  <h1>Motion Detection</h1>
+  <button id="start">Start Motion Detection</button>
+  <pre id="output">Waiting for motion data...</pre>
+
+  <script>
+    const output = document.getElementById('output');
+    const button = document.getElementById('start');
+
+    function handleMotion(event) {
+      const acc = event.accelerationIncludingGravity;
+      output.textContent = `
+Acceleration X: ${acc.x?.toFixed(2)}
+Acceleration Y: ${acc.y?.toFixed(2)}
+Acceleration Z: ${acc.z?.toFixed(2)}
+`;
+    }
+
+    button.addEventListener('click', async () => {
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        // iOS 13+ requires permission
+        try {
+          const response = await DeviceMotionEvent.requestPermission();
+          if (response === 'granted') {
+            window.addEventListener('devicemotion', handleMotion);
+            output.textContent = 'Permission granted. Move your phone!';
+          } else {
+            output.textContent = 'Permission denied.';
+          }
+        } catch (error) {
+          output.textContent = `Error: ${error}`;
+        }
+      } else {
+        // Android or older iOS
+        window.addEventListener('devicemotion', handleMotion);
+        output.textContent = 'Listening for motion events. Move your phone!';
+      }
+    });
+  </script>
+</body>
+</html>
+
+
