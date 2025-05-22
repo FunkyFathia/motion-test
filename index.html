@@ -1,65 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Phone Gesture Detection</title>
-  <style>
-    body { font-family: sans-serif; text-align: center; padding: 2rem; }
-    #log { font-size: 1.5rem; color: darkblue; margin-top: 2rem; }
-  </style>
+  <title>Motion Sensor Test</title>
 </head>
 <body>
-  <h1>Phone Gesture Detector</h1>
-  <p>Shake, Tilt, or Flip your phone</p>
-  <div id="log">Waiting for motion...</div>
+  <h1>Motion Sensor Test</h1>
+  <p id="output">Waiting for motion...</p>
 
   <script>
-    const log = document.getElementById('log');
-
-    let lastShakeTime = 0;
-
-    // Shake detection using acceleration
-    window.addEventListener('devicemotion', function (event) {
-      const acc = event.accelerationIncludingGravity;
-      const totalAccel = Math.sqrt(acc.x ** 2 + acc.y ** 2 + acc.z ** 2);
-
-      const now = Date.now();
-      if (totalAccel > 25 && (now - lastShakeTime > 1000)) {
-        lastShakeTime = now;
-        log.innerText = "Shake detected!";
+    // Request permission on iOS devices
+    function requestMotionPermission() {
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === 'granted') {
+              startMotionListener();
+            } else {
+              document.getElementById('output').textContent = 'Permission denied.';
+            }
+          })
+          .catch(console.error);
+      } else {
+        // Android or non-iOS
+        startMotionListener();
       }
-    });
-
-    // Orientation detection (tilt + flip)
-    window.addEventListener('deviceorientation', function (event) {
-      const tiltLR = event.gamma;  // Left/right tilt
-      const tiltFB = event.beta;   // Front/back tilt
-
-      // Tilt
-      if (tiltLR > 45) {
-        log.innerText = "Tilt Right detected!";
-      } else if (tiltLR < -45) {
-        log.innerText = "Tilt Left detected!";
-      }
-
-      // Face down (flip)
-      if (tiltFB > 160 || tiltFB < -160) {
-        log.innerText = "Phone is face down!";
-      }
-    });
-
-    // Ask for permission on iOS
-    if (typeof DeviceMotionEvent !== 'undefined' &&
-        typeof DeviceMotionEvent.requestPermission === 'function') {
-      DeviceMotionEvent.requestPermission()
-        .then(response => {
-          if (response === 'granted') {
-            log.innerText = "Motion access granted!";
-          } else {
-            log.innerText = "Permission denied.";
-          }
-        })
-        .catch(console.error);
     }
+
+    function startMotionListener() {
+      window.addEventListener('devicemotion', function(event) {
+        const acc = event.accelerationIncludingGravity;
+        if (acc) {
+          document.getElementById('output').textContent =
+            `X: ${acc.x.toFixed(2)}, Y: ${acc.y.toFixed(2)}, Z: ${acc.z.toFixed(2)}`;
+        }
+      });
+    }
+
+    // Ask for permission when page loads
+    window.addEventListener('load', requestMotionPermission);
   </script>
 </body>
 </html>
+
