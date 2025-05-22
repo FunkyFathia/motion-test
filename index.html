@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Phone Gesture Detection</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 2rem; }
+    #log { font-size: 1.5rem; color: darkblue; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>Phone Gesture Detector</h1>
+  <p>Shake, Tilt, or Flip your phone</p>
+  <div id="log">Waiting for motion...</div>
+
+  <script>
+    const log = document.getElementById('log');
+
+    let lastShakeTime = 0;
+
+    // Shake detection using acceleration
+    window.addEventListener('devicemotion', function (event) {
+      const acc = event.accelerationIncludingGravity;
+      const totalAccel = Math.sqrt(acc.x ** 2 + acc.y ** 2 + acc.z ** 2);
+
+      const now = Date.now();
+      if (totalAccel > 25 && (now - lastShakeTime > 1000)) {
+        lastShakeTime = now;
+        log.innerText = "Shake detected!";
+      }
+    });
+
+    // Orientation detection (tilt + flip)
+    window.addEventListener('deviceorientation', function (event) {
+      const tiltLR = event.gamma;  // Left/right tilt
+      const tiltFB = event.beta;   // Front/back tilt
+
+      // Tilt
+      if (tiltLR > 45) {
+        log.innerText = "Tilt Right detected!";
+      } else if (tiltLR < -45) {
+        log.innerText = "Tilt Left detected!";
+      }
+
+      // Face down (flip)
+      if (tiltFB > 160 || tiltFB < -160) {
+        log.innerText = "Phone is face down!";
+      }
+    });
+
+    // Ask for permission on iOS
+    if (typeof DeviceMotionEvent !== 'undefined' &&
+        typeof DeviceMotionEvent.requestPermission === 'function') {
+      DeviceMotionEvent.requestPermission()
+        .then(response => {
+          if (response === 'granted') {
+            log.innerText = "Motion access granted!";
+          } else {
+            log.innerText = "Permission denied.";
+          }
+        })
+        .catch(console.error);
+    }
+  </script>
+</body>
+</html>
