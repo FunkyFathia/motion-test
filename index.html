@@ -2,35 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Speech & Motion Detection</title>
+  <title>Speech & Motion Detector</title>
   <style>
     body { font-family: sans-serif; padding: 20px; }
-    #output, #motionOutput { white-space: pre-wrap; margin-top: 20px; }
+    #output, #motionOutput { margin-top: 20px; }
     .line { margin-bottom: 10px; }
     .timestamp { color: gray; font-size: 0.9em; }
-    .motion { color: darkblue; margin-top: 10px; font-weight: bold; }
-    button { margin-right: 10px; }
   </style>
 </head>
 <body>
-  <h2>Speech & Motion Detection</h2>
-  <button onclick="startRecognition()">Start Listening</button>
-  <button id="stopBtn">Stop Listening</button>
-
+  <h2>Speech to Text & Motion Detection</h2>
+  <button onclick="startRecognition()">🎙️ Start Listening</button>
+  <button id="stopBtn">🛑 Stop Listening</button>
   <div id="output"></div>
-  <div id="motionOutput" class="motion">Motion: None</div>
+  <h3>Motion Status:</h3>
+  <div id="motionOutput">Waiting for motion data...</div>
 
   <script>
-    let startTime = new Date();
     const output = document.getElementById('output');
     const motionOutput = document.getElementById('motionOutput');
+    let startTime = new Date();
     let interimParagraph = document.createElement('p');
     output.appendChild(interimParagraph);
 
-    // --- SPEECH RECOGNITION ---
     function startRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
       if (!SpeechRecognition) {
         alert("Your browser does not support Speech Recognition.");
         return;
@@ -43,18 +39,16 @@
 
       recognition.onresult = (event) => {
         interimParagraph.innerHTML = '';
-
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const result = event.results[i];
           const text = result[0].transcript.trim();
 
           if (result.isFinal) {
-            const renderTime = new Date();
-            const durationInMinutes = (renderTime - startTime) / 60000;
-            const wordCount = text.split(/\s+/).length;
-            const wpm = (wordCount / durationInMinutes).toFixed(2);
-            const timestamp = renderTime.toLocaleTimeString();
-
+            const now = new Date();
+            const duration = (now - startTime) / 60000;
+            const words = text.split(/\s+/).length;
+            const wpm = (words / duration).toFixed(2);
+            const timestamp = now.toLocaleTimeString();
             const latency = (performance.now() - event.timeStamp).toFixed(2);
 
             const p = document.createElement('p');
@@ -87,52 +81,43 @@
       }
     }
 
-    // --- MOTION DETECTION ---
+    // Detect simple motion type (e.g., still, moving, shaking)
     function detectMotionType(x, y, z) {
-      const threshold = 12; // simple shake threshold
+      const total = Math.sqrt(x * x + y * y + z * z);
+      if (total < 1) return "Still";
+      if (total < 10) return "Moving";
+      return "Shaking";
+    }
 
-      if (Math.abs(x) > threshold || Math.abs(y) > threshold || Math.abs(z) > threshold) {
-        return "Shake";
-      } else if (y < -7) {
-        return "Tilted Up";
-      } else if (y > 7) {
-        return "Tilted Down";
-      } else if (x > 7) {
-        return "Tilted Right";
-      } else if (x < -7) {
-        return "Tilted Left";
-      } else {
-        return "Stable";
+    function enableMotionDetection() {
+      function handleMotion(event) {
+        const acc = event.accelerationIncludingGravity;
+        if (!acc) return;
+        const { x = 0, y = 0, z = 0 } = acc;
+        const motionType = detectMotionType(x, y, z);
+        motionOutput.textContent = `Motion: ${motionType} (x=${x.toFixed(2)}, y=${y.toFixed(2)}, z=${z.toFixed(2)})`;
       }
-    }
 
-    function handleMotion(event) {
-      const acc = event.accelerationIncludingGravity;
-      if (!acc) return;
-
-      const { x, y, z } = acc;
-      const motionType = detectMotionType(x, y, z);
-      motionOutput.textContent = `Motion: ${motionType}`;
-    }
-
-    function requestMotionPermission() {
-      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
         DeviceMotionEvent.requestPermission()
-          .then(permissionState => {
-            if (permissionState === 'granted') {
-              window.addEventListener('devicemotion', handleMotion);
+          .then(permission => {
+            if (permission === 'granted') {
+              window.addEventListener("devicemotion", handleMotion, true);
             } else {
-              motionOutput.textContent = "Motion access denied.";
+              motionOutput.textContent = "Motion permission denied.";
             }
           })
-          .catch(console.error);
+          .catch(err => {
+            motionOutput.textContent = `Motion permission error: ${err}`;
+          });
       } else {
-        window.addEventListener('devicemotion', handleMotion);
+        window.addEventListener("devicemotion", handleMotion, true);
       }
     }
 
-    // Ask permission for motion on load
-    window.addEventListener('load', requestMotionPermission);
+    // Enable motion on page load
+    window.addEventListener("load", enableMotionDetection);
   </script>
 </body>
 </html>
+
