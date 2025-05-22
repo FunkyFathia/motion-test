@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Speech & Motion Detection</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #output, #motionOutput { white-space: pre-wrap; margin-top: 20px; }
+    .line { margin-bottom: 10px; }
+    .timestamp { color: gray; font-size: 0.9em; }
+    .motion { color: darkblue; margin-top: 10px; font-weight: bold; }
+    button { margin-right: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Speech & Motion Detection</h2>
+  <button onclick="startRecognition()">Start Listening</button>
+  <button id="stopBtn">Stop Listening</button>
+
+  <div id="output"></div>
+  <div id="motionOutput" class="motion">Motion: None</div>
+
+  <script>
+    let startTime = new Date();
+    const output = document.getElementById('output');
+    const motionOutput = document.getElementById('motionOutput');
+    let interimParagraph = document.createElement('p');
+    output.appendChild(interimParagraph);
+
+    // --- SPEECH RECOGNITION ---
+    function startRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        alert("Your browser does not support Speech Recognition.");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        interimParagraph.innerHTML = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const result = event.results[i];
+          const text = result[0].transcript.trim();
+
+          if (result.isFinal) {
+            const renderTime = new Date();
+            const durationInMinutes = (renderTime - startTime) / 60000;
+            const wordCount = text.split(/\s+/).length;
+            const wpm = (wordCount / durationInMinutes).toFixed(2);
+            const timestamp = renderTime.toLocaleTimeString();
+
+            const latency = (performance.now() - event.timeStamp).toFixed(2);
+
+            const p = document.createElement('p');
+            p.className = 'line';
+            p.innerHTML = `<strong>[${timestamp}]</strong> <em>${wpm} wpm</em> – <code>${latency} ms latency</code><br>${text}`;
+            output.appendChild(p);
+
+            startTime = new Date();
+            interimParagraph = document.createElement('p');
+            output.appendChild(interimParagraph);
+          } else {
+            interimParagraph.textContent = text;
+          }
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error", event);
+      };
+
+      recognition.onend = () => {
+        console.log("Speech recognition stopped.");
+      };
+
+      recognition.start();
+
+      const stopBtn = document.getElementById('stopBtn');
+      if (stopBtn) {
+        stopBtn.onclick = () => recognition.stop();
+      }
+    }
+
+    // --- MOTION DETECTION ---
+    function detectMotionType(x, y, z) {
+      const threshold = 12; // simple shake threshold
+
+      if (Math.abs(x) > threshold || Math.abs(y) > threshold || Math.abs(z) > threshold) {
+        return "Shake";
+      } else if (y < -7) {
+        return "Tilted Up";
+      } else if (y > 7) {
+        return "Tilted Down";
+      } else if (x > 7) {
+        return "Tilted Right";
+      } else if (x < -7) {
+        return "Tilted Left";
+      } else {
+        return "Stable";
+      }
+    }
+
+    function handleMotion(event) {
+      const acc = event.accelerationIncludingGravity;
+      if (!acc) return;
+
+      const { x, y, z } = acc;
+      const motionType = detectMotionType(x, y, z);
+      motionOutput.textContent = `Motion: ${motionType}`;
+    }
+
+    function requestMotionPermission() {
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === 'granted') {
+              window.addEventListener('devicemotion', handleMotion);
+            } else {
+              motionOutput.textContent = "Motion access denied.";
+            }
+          })
+          .catch(console.error);
+      } else {
+        window.addEventListener('devicemotion', handleMotion);
+      }
+    }
+
+    // Ask permission for motion on load
+    window.addEventListener('load', requestMotionPermission);
+  </script>
+</body>
+</html>
